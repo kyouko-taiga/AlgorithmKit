@@ -1,65 +1,4 @@
-
-public protocol Tree {
-
-    associatedtype Node: TreeNode
-
-    var root: Node? { get }
-
-    var isEmpty: Bool { get }
-    var count  : Int  { get }
-    var height : Int  { get }
-
-}
-
-extension Tree {
-
-    public var isEmpty: Bool {
-        return self.root == nil
-    }
-
-    public var count: Int {
-        guard self.root != nil else {
-            return 0
-        }
-
-        var stack  = [self.root!]
-        var result = 0
-        while let node = stack.popLast() {
-            result += 1
-            stack.append(contentsOf: node.children)
-        }
-
-        return result
-    }
-
-    public var height: Int {
-        guard self.root != nil else {
-            return 0
-        }
-
-        var stack  = [(node: self.root!, height: 1)]
-        var result = 0
-        while let (node, height) = stack.popLast() {
-            result = Swift.max(result, height)
-            stack.append(contentsOf: node.children.map { ($0, height + 1) })
-        }
-
-        return result
-    }
-
-}
-
-// ---
-
-public protocol TreeNode {
-
-    var children: [Self] { get }
-
-}
-
-// ---------------------------------------------------------------------------
-
-public struct AVLTree<Key: Comparable, Value>: Tree {
+public struct AVLTree<Key: Comparable, Value>: BinarySearchTree {
 
     public private(set) var root: AVLTreeNode<Key, Value>? = nil
 
@@ -106,10 +45,6 @@ public struct AVLTree<Key: Comparable, Value>: Tree {
                 self[key] = value
             }
         }
-    }
-
-    public func contains(_ key: Key) -> Bool {
-        return true
     }
 
     public subscript(key: Key) -> Value? {
@@ -203,30 +138,6 @@ public struct AVLTree<Key: Comparable, Value>: Tree {
         return value
     }
 
-    private func findNode(withKey key: Key) -> AVLTreeNode<Key, Value>? {
-        guard var node = self.root else {
-            return nil
-        }
-
-        while true {
-            if key == node.key {
-                return node
-            } else if key < node.key {
-                if node.left == nil {
-                    return nil
-                } else {
-                    node = node.left!
-                }
-            } else {
-                if node.right == nil {
-                    return nil
-                } else {
-                    node = node.right!
-                }
-            }
-        }
-    }
-
     private mutating func rebalance(from startNode: AVLTreeNode<Key, Value>) {
         var node = startNode
         while let parent = node.parent {
@@ -247,39 +158,42 @@ public struct AVLTree<Key: Comparable, Value>: Tree {
 
 extension AVLTree: ExpressibleByDictionaryLiteral {
 
-    public init(dictionaryLiteral elements: (Key, Value)...) {
+    public init(dictionaryLiteral elements: (Node.Key, Node.Value)...) {
         self.init(uniqueKeysWithValues: elements)
     }
-    
+
+}
+
+extension AVLTree: CustomStringConvertible {
+
+    public var description: String {
+        guard !self.isEmpty else {
+            return "[:]"
+        }
+
+        let content = self.map({ String(describing: $0) + ": " + String(describing: $1) })
+            .joined(separator: ",")
+        return "[\(content)]"
+    }
+
 }
 
 // ---
 
-public final class AVLTreeNode<Key: Comparable, Value>: TreeNode {
+public final class AVLTreeNode<Key: Comparable, Value>: BinarySearchTreeNode {
 
-    public var children: [AVLTreeNode] {
-        var result = [AVLTreeNode]()
-        if let child = self.left {
-            result.append(child)
-        }
-        if let child = self.right {
-            result.append(child)
-        }
-        return result
-    }
-
-    fileprivate var key  : Key
-    fileprivate var value: Value
+    public var key  : Key
+    public var value: Value
 
     fileprivate weak var parent: AVLTreeNode?
 
-    fileprivate var left: AVLTreeNode? = nil {
+    public var left: AVLTreeNode? = nil {
         didSet {
             self.height         = Swift.max(self.left?.height ?? 0, self.right?.height ?? 0) + 1
             self.parent?.height = Swift.max(self.height + 1, self.parent?.height ?? 0)
         }
     }
-    fileprivate var right: AVLTreeNode? = nil {
+    public var right: AVLTreeNode? = nil {
         didSet {
             self.height         = Swift.max(self.left?.height ?? 0, self.right?.height ?? 0) + 1
             self.parent?.height = Swift.max(self.height + 1, self.parent?.height ?? 0)
